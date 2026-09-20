@@ -2,213 +2,170 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>作业2：3机Flow-shop调度智能体</title>
+<title>FlowShop 3机调度智能体(列出全部120种)</title>
 <style>
-*{box-sizing:border-box;font-family:system-ui}
-body{max-width:1100px;margin:20px auto;padding:0 16px}
-table{border-collapse:collapse;margin:10px 0}
-td,th{border:1px solid #aaa;padding:8px 12px;text-align:center}
-input{width:70px;padding:4px;font-size:16px}
-button{padding:10px 16px;margin:5px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:16px;cursor:pointer}
-#resetBtn{background:#6b7280}
-#output{white-space:pre-wrap;background:#f6f6f6;padding:16px;border-radius:8px;margin:15px 0}
-#gantt{margin-top:20px}
-.gantt-row{display:flex;align-items:center;margin:6px}
-.gantt-label{width:80px}
-.gantt-bar{height:28px;margin:0 2px;color:white;text-align:center;font-size:12px;line-height:28px}
+body{font-family:system-ui; padding:20px;}
+table{border-collapse:collapse; margin:10px 0;}
+td,th{border:1px solid #999; padding:6px 10px;}
+.opt{background:#90ee90; font-weight:bold;}
+#listAll{max-height:450px; overflow:auto; border:1px solid #ccc; padding:10px;}
 </style>
 </head>
 <body>
-<h2>作业2：3机调度智能体（Johnson法则 + 全排列枚举）</h2>
-<p>穷举5! = 120个加工顺序，Johnson法则把3机问题转2机，自动比较结果。可自行修改表格数据重新计算。</p>
-
-<h3>① 输入加工时间</h3>
-<table id="jobTable">
-  <tr><th>任务</th><th>机器A</th><th>机器B</th><th>机器C</th></tr>
-  <tr>
-    <td>1</td>
-    <td><input class="ta" value="4"></td>
-    <td><input class="tb" value="5"></td>
-    <td><input class="tc" value="8"></td>
-  </tr>
-  <tr>
-    <td>2</td>
-    <td><input class="ta" value="9"></td>
-    <td><input class="tb" value="6"></td>
-    <td><input class="tc" value="10"></td>
-  </tr>
-  <tr>
-    <td>3</td>
-    <td><input class="ta" value="8"></td>
-    <td><input class="tb" value="2"></td>
-    <td><input class="tc" value="6"></td>
-  </tr>
-  <tr>
-    <td>4</td>
-    <td><input class="ta" value="6"></td>
-    <td><input class="tb" value="3"></td>
-    <td><input class="tc" value="7"></td>
-  </tr>
-  <tr>
-    <td>5</td>
-    <td><input class="ta" value="5"></td>
-    <td><input class="tb" value="4"></td>
-    <td><input class="tc" value="11"></td>
-  </tr>
+<h2>Flow-shop三机调度求解（5工件，枚举全部120组合）</h2>
+<div>
+<h4>输入加工时间：</h4>
+<table>
+<tr><th>工件</th><th>机器A</th><th>机器B</th><th>机器C</th></tr>
+<tr>
+<td>1</td>
+<td><input id="t1a" value="4" size="3"></td>
+<td><input id="t1b" value="5" size="3"></td>
+<td><input id="t1c" value="8" size="3"></td>
+</tr>
+<tr>
+<td>2</td>
+<td><input id="t2a" value="9" size="3"></td>
+<td><input id="t2b" value="6" size="3"></td>
+<td><input id="t2c" value="10" size="3"></td>
+</tr>
+<tr>
+<td>3</td>
+<td><input id="t3a" value="8" size="3"></td>
+<td><input id="t3b" value="2" size="3"></td>
+<td><input id="t3c" value="6" size="3"></td>
+</tr>
+<tr>
+<td>4</td>
+<td><input id="t4a" value="6" size="3"></td>
+<td><input id="t4b" value="3" size="3"></td>
+<td><input id="t4c" value="7" size="3"></td>
+</tr>
+<tr>
+<td>5</td>
+<td><input id="t5a" value="5" size="3"></td>
+<td><input id="t5b" value="4" size="3"></td>
+<td><input id="t5c" value="11" size="3"></td>
+</tr>
 </table>
-<button id="runBtn">运行智能体</button>
-<button id="resetBtn">恢复题目原始数据</button>
+<button onclick="calc()">计算（Johnson+全部120枚举）</button>
+<div id="tip" style="color:red; margin:10px 0;"></div>
+</div>
 
-<h3>② 智能体输出</h3>
-<div id="output"></div>
+<div>
+<h3>Johnson法则结果</h3>
+<div id="resJohnson"></div>
+</div>
 
-<h3>③ 甘特图（Johnson最优序列）</h3>
-<div id="gantt"></div>
+<div>
+<h3>✅全局最优（穷举）</h3>
+<div id="resBrute"></div>
+</div>
+
+<div>
+<h3>全部120种排列结果（顺序 | makespan）</h3>
+<div id="listAll"></div>
+</div>
 
 <script>
-// 读取表格数据
-function readJobs(){
-  const rows = document.querySelectorAll("#jobTable tr:not(:first-child)");
-  const jobs = [];
-  rows.forEach((row,idx)=>{
-    const ta = Number(row.querySelector(".ta").value);
-    const tb = Number(row.querySelector(".tb").value);
-    const tc = Number(row.querySelector(".tc").value);
-    jobs.push({id:idx+1,A:ta,B:tb,C:tc});
-  })
-  return jobs;
+// 获取输入数据
+function getJobs(){
+    return [
+        {A:Number(document.getElementById('t1a').value), B:Number(document.getElementById('t1b').value), C:Number(document.getElementById('t1c').value), id:1},
+        {A:Number(document.getElementById('t2a').value), B:Number(document.getElementById('t2b').value), C:Number(document.getElementById('t2c').value), id:2},
+        {A:Number(document.getElementById('t3a').value), B:Number(document.getElementById('t3b').value), C:Number(document.getElementById('t3c').value), id:3},
+        {A:Number(document.getElementById('t4a').value), B:Number(document.getElementById('t4b').value), C:Number(document.getElementById('t4c').value), id:4},
+        {A:Number(document.getElementById('t5a').value), B:Number(document.getElementById('t5b').value), C:Number(document.getElementById('t5c').value), id:5},
+    ]
 }
 
-// 计算Makespan
-function calcMakespan(order,jobs){
-  let la=0,lb=0,lc=0;
-  const timeline = [];
-  for(let jid of order){
-    const j = jobs.find(x=>x.id===jid);
-    const ea = la + j.A;
-    const eb = Math.max(ea, lb) + j.B;
-    const ec = Math.max(eb, lc) + j.C;
-    timeline.push({job:jid, A:[la,ea], B:[Math.max(ea,lb),eb], C:[Math.max(eb,lc),ec]});
-    la=ea; lb=eb; lc=ec;
-  }
-  return {makespan:lc, timeline};
-}
-
-// Johnson 3机转2机
-function johnson3(jobs){
-  const jobList = jobs.map(j=>({id:j.id, ap:j.A+j.B, bp:j.B+j.C}));
-  let left=[], right=[];
-  let arr = [...jobList];
-  while(arr.length>0){
-    const allVals = arr.flatMap(x=>[x.ap, x.bp]);
-    const minV = Math.min(...allVals);
-    const pos = arr.findIndex(x=>x.ap===minV || x.bp===minV);
-    const item = arr.splice(pos,1)[0];
-    if(item.ap < item.bp) left.push(item.id);
-    else right.unshift(item.id);
-  }
-  return [...left,...right];
+// 计算给定序列的makespan
+function calcMakespan(jobSeq){
+    let ma=0,mb=0,mc=0;
+    for(let j of jobSeq){
+        ma = Math.max(ma, mb) + j.A;
+        mb = Math.max(mb, mc) + j.B;
+        mc = Math.max(mc, 0) + j.C;
+    }
+    return mc;
 }
 
 // 全排列生成
 function permute(arr){
-  const res = [];
-  const dfs=(path,rest)=>{
-    if(rest.length===0){res.push(path);return;}
-    for(let i=0;i<rest.length;i++){
-      dfs([...path, rest[i]], rest.filter((_,idx)=>idx!==i));
+    let res=[];
+    function dfs(rest, path){
+        if(rest.length===0){
+            res.push([...path]);
+            return;
+        }
+        for(let i=0;i<rest.length;i++){
+            let newRest = rest.filter((_,idx)=>idx!==i);
+            dfs(newRest, [...path, rest[i]]);
+        }
     }
-  }
-  dfs([],arr);
-  return res;
+    dfs(arr,[]);
+    return res;
 }
 
-// 绘制甘特图
-function drawGantt(timeline, totalT){
-  const container = document.getElementById("gantt");
-  container.innerHTML="";
-  const colors = {1:"#3b82f6",2:"#10b981",3:"#f59e0b",4:"#ef4444",5:"#8b5cf6"};
-  ["A","B","C"].forEach(m=>{
-    const divRow = document.createElement("div");
-    divRow.className="gantt-row";
-    const label = document.createElement("div");
-    label.className="gantt-label";
-    label.textContent="机器"+m;
-    divRow.appendChild(label);
-    timeline.forEach(seg=>{
-      const [s,e] = seg[m];
-      const bar = document.createElement("div");
-      bar.className="gantt-bar";
-      bar.style.width = ((e-s)/totalT*100)+"%";
-      bar.style.backgroundColor = colors[seg.job];
-      bar.textContent=seg.job;
-      bar.title=`任务${seg.job}：${s} ~ ${e}`;
-      divRow.appendChild(bar);
-    })
-    container.appendChild(divRow);
-  })
-}
-
-document.getElementById("runBtn").onclick = ()=>{
-  const jobs = readJobs();
-  const AList = jobs.map(x=>x.A);
-  const BList = jobs.map(x=>x.B);
-  const CList = jobs.map(x=>x.C);
-  const minA = Math.min(...AList);
-  const maxB = Math.max(...BList);
-  const minC = Math.min(...CList);
-  const okCond = (minA >= maxB) || (minC >= maxB);
-
-  // Johnson计算
-  const johnOrder = johnson3(jobs);
-  const johnRes = calcMakespan(johnOrder, jobs);
-
-  // 全排列枚举
-  const ids = jobs.map(x=>x.id);
-  const allOrders = permute(ids);
-  let globalMin = Infinity;
-  let bestOrders = [];
-  allOrders.forEach(ord=>{
-    const ms = calcMakespan(ord,jobs).makespan;
-    if(ms < globalMin){
-      globalMin = ms; bestOrders=[ord];
-    }else if(ms===globalMin){
-      bestOrders.push(ord);
+// Johnson三机
+function johnson3(jobs){
+    let minA = Math.min(...jobs.map(x=>x.A));
+    let maxB = Math.max(...jobs.map(x=>x.B));
+    let minC = Math.min(...jobs.map(x=>x.C));
+    let tipDom = document.getElementById('tip');
+    if(minC >= maxB){
+        tipDom.innerText = "✅满足三机Johnson充分条件 min(Ci) ≥ max(Bi)，Johnson解为全局最优";
+        tipDom.style.color='green';
+    }else{
+        tipDom.innerText = "⚠️不满足三机Johnson充分条件，Johnson仅为可行解，不能保证全局最优！";
+        tipDom.style.color='red';
     }
-  })
-
-  let txt = `===== 基础参数 =====
-min(A)=${minA}, max(B)=${maxB}, min(C)=${minC}
-Johnson转化条件：${okCond ? "✅满足，可以使用Johnson法则求最优" : "❌不满足，Johnson解不保证全局最优，仅作参考"}
-
-===== Johnson法则结果 =====
-推荐加工顺序：${johnOrder.join(" → ")}
-该序列Makespan = ${johnRes.makespan}
-
-===== 全排列穷举结果（共${allOrders.length}种） =====
-全局最小Makespan = ${globalMin}
-全部最优序列：
-${bestOrders.map(o=>o.join("→")).join("\n")}
-
-===== 对比结论 =====
-${johnRes.makespan===globalMin ? "✅Johnson结果和全局枚举最优值一致" : "⚠️Johnson结果不等于全局最优，该条件下Johnson法则不能保证全局最优"}
-`;
-  document.getElementById("output").textContent = txt;
-  drawGantt(johnRes.timeline, Math.max(johnRes.makespan,globalMin));
+    //虚拟两机
+    let vJobs = jobs.map(j=>({
+        id:j.id,
+        a:j.A + j.B,
+        b:j.B + j.C
+    }));
+    let left=[],right=[];
+    for(let x of vJobs){
+        if(x.a < x.b) left.push(x);
+        else right.push(x);
+    }
+    left.sort((p,q)=>p.a - q.a);
+    right.sort((p,q)=>q.b - p.b);
+    let seqId = [...left,...right].map(x=>x.id);
+    let seq = seqId.map(id=>jobs.find(j=>j.id===id));
+    return {seq, seqId, mk:calcMakespan(seq)};
 }
 
-document.getElementById("resetBtn").onclick=()=>{
-  const inputs = document.querySelectorAll(".ta");
-  const tb = document.querySelectorAll(".tb");
-  const tc = document.querySelectorAll(".tc");
-  const dataA=[4,9,8,6,5];
-  const dataB=[5,6,2,3,4];
-  const dataC=[8,10,6,7,11];
-  inputs.forEach((inp,i)=>inp.value=dataA[i]);
-  tb.forEach((inp,i)=>inp.value=dataB[i]);
-  tc.forEach((inp,i)=>inp.value=dataC[i]);
-  document.getElementById("output").textContent="";
-  document.getElementById("gantt").innerHTML="";
+function calc(){
+    const jobs = getJobs();
+    //Johnson
+    let jh = johnson3(jobs);
+    document.getElementById('resJohnson').innerText=`加工顺序：${jh.seqId.join(' → ')}，Makespan=${jh.mk}`;
+
+    //全部120枚举
+    let allPerm = permute(jobs);
+    let listHtml = "";
+    let minMk=Infinity;
+    let bestSeqId=null;
+    for(let p of allPerm){
+        let mk = calcMakespan(p);
+        let ids = p.map(x=>x.id).join(',');
+        if(mk < minMk){
+            minMk = mk;
+            bestSeqId = ids;
+        }
+    }
+    //二次遍历渲染，高亮最优
+    for(let p of allPerm){
+        let mk = calcMakespan(p);
+        let ids = p.map(x=>x.id).join(',');
+        let cls = (mk===minMk) ? 'opt' : '';
+        listHtml += `<div class="${cls}">顺序：${ids} ，makespan = ${mk}</div>`;
+    }
+    document.getElementById('listAll').innerHTML = listHtml;
+    document.getElementById('resBrute').innerText=`最优顺序：${bestSeqId}，最小Makespan=${minMk}`;
 }
 </script>
 </body>
