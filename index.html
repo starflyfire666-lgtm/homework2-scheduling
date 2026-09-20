@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>FlowShop 3机调度智能体(列出全部120种)</title>
+<title>FlowShop 3机调度智能体(列出全部120组合)</title>
 <style>
 body{font-family:system-ui; padding:20px;}
 table{border-collapse:collapse; margin:10px 0;}
@@ -58,12 +58,12 @@ td,th{border:1px solid #999; padding:6px 10px;}
 </div>
 
 <div>
-<h3>✅全局最优（穷举）</h3>
+<h3>✅全局最优（穷举得到）</h3>
 <div id="resBrute"></div>
 </div>
 
 <div>
-<h3>全部120种排列结果（顺序 | makespan）</h3>
+<h3>全部120种排列结果（顺序 | makespan），最优行绿色高亮</h3>
 <div id="listAll"></div>
 </div>
 
@@ -79,13 +79,13 @@ function getJobs(){
     ]
 }
 
-// 计算给定序列的makespan
+// ======【修复】正确的3机Flow-shop makespan计算 ======
 function calcMakespan(jobSeq){
     let ma=0,mb=0,mc=0;
     for(let j of jobSeq){
-        ma = Math.max(ma, mb) + j.A;
-        mb = Math.max(mb, mc) + j.B;
-        mc = Math.max(mc, 0) + j.C;
+        ma = ma + j.A;
+        mb = Math.max(ma, mb) + j.B;
+        mc = Math.max(mb, mc) + j.C;
     }
     return mc;
 }
@@ -146,26 +146,24 @@ function calc(){
 
     //全部120枚举
     let allPerm = permute(jobs);
-    let listHtml = "";
-    let minMk=Infinity;
-    let bestSeqId=null;
+    let resultList = [];
     for(let p of allPerm){
         let mk = calcMakespan(p);
         let ids = p.map(x=>x.id).join(',');
-        if(mk < minMk){
-            minMk = mk;
-            bestSeqId = ids;
-        }
+        resultList.push({ids, mk});
     }
-    //二次遍历渲染，高亮最优
-    for(let p of allPerm){
-        let mk = calcMakespan(p);
-        let ids = p.map(x=>x.id).join(',');
-        let cls = (mk===minMk) ? 'opt' : '';
-        listHtml += `<div class="${cls}">顺序：${ids} ，makespan = ${mk}</div>`;
+    //找最小makespan
+    let minMk = Math.min(...resultList.map(item=>item.mk));
+    let bestItems = resultList.filter(item=>item.mk === minMk);
+
+    //渲染列表
+    let listHtml = "";
+    for(let item of resultList){
+        let cls = (item.mk===minMk) ? 'opt' : '';
+        listHtml += `<div class="${cls}">顺序：${item.ids} ，makespan = ${item.mk}</div>`;
     }
     document.getElementById('listAll').innerHTML = listHtml;
-    document.getElementById('resBrute').innerText=`最优顺序：${bestSeqId}，最小Makespan=${minMk}`;
+    document.getElementById('resBrute').innerText=`最小Makespan=${minMk}，一共有${bestItems.length}组最优序列`;
 }
 </script>
 </body>
